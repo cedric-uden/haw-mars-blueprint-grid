@@ -10,7 +10,7 @@
   "layers": [
     {
       "name": "GridLayer",
-      "file": "Resources/grid_closed.csv",
+      "file": "Resources/grid_emergency_exit.csv",
       "pythonVisualization": true
     }
   ],
