@@ -166,7 +166,8 @@ public class ComplexAgent : IAgent<GridLayer>, IPositionable
     private Position FindRoutableGoal(double maxDistanceToGoal = 1.0)
     {
         var nearbyRoutableCells = _layer.Explore(Position, radius: maxDistanceToGoal, predicate: cellValue => cellValue == 0.0).ToList();
-        var goal = nearbyRoutableCells[_random.Next(nearbyRoutableCells.Count)].Node.NodePosition;
+        // var goal = nearbyRoutableCells[_random.Next(nearbyRoutableCells.Count)].Node.NodePosition;
+        var goal = new Position(58, 2);
 
         // in case only one cell is routable, use directly no need to random!
         // other vise, try to find a cell we are not coming from
