@@ -149,7 +149,10 @@ public class ComplexAgent : IAgent<GridLayer>, IPositionable
         
         if (_path.MoveNext())
         {
-            _layer.ComplexAgentEnvironment.MoveTo(this, _path.Current, 1);
+            if (!this.CollisionDetected(_path.Current))
+            {
+                _layer.ComplexAgentEnvironment.MoveTo(this, _path.Current, 1);
+            }
             if (Position.Equals(_goal))
             {
                 Console.WriteLine($"ComplexAgent {ID} reached goal {_goal}");
@@ -200,6 +203,23 @@ public class ComplexAgent : IAgent<GridLayer>, IPositionable
         }
     }
 
+    private bool CollisionDetected(Position pos)
+    {
+        // Explore nearby other SimpleAgent instances
+        var agents = _layer.ComplexAgentEnvironment.Explore(Position, radius: AgentExploreRadius);
+
+        foreach (var agent in agents)
+        {
+            if (Math.Abs(pos.X - agent.Position.X) < 0.1 && (Math.Abs(pos.Y - agent.Position.Y) < 0.1))
+            {
+                return true;
+            }
+            
+        }
+
+        return false;
+    }
+    
     /// <summary>
     ///     Selects a new state from the AgentState enumeration to guide for subsequent behavior.
     ///     Will return the current state if a route is still in progress.
