@@ -7,6 +7,8 @@ using Mars.Interfaces.Annotations;
 using Mars.Interfaces.Environments;
 using Mars.Interfaces.Layers;
 using Mars.Numerics;
+using Newtonsoft.Json;
+using ServiceStack.Logging;
 
 namespace GridBlueprint.Model;
 
@@ -23,7 +25,7 @@ public class ComplexAgent : IAgent<GridLayer>, IPositionable
     {
         _layer = layer;
         Position = new Position(StartX, StartY);
-        _state = AgentState.MoveTowardsGoal;  // Initial state of the agent. Is overwritten eventually in Tick()
+        _state = AgentState.MoveTowardsGoalWithCollision;  // Initial state of the agent 
         _directions = CreateMovementDirectionsList();
         _layer.ComplexAgentEnvironment.Insert(this);
     }
@@ -40,23 +42,27 @@ public class ComplexAgent : IAgent<GridLayer>, IPositionable
     public void Tick()
     {
         // Chooses random state if trip is no longer in progress. Comment this out if the agent should keep its initial state.
-        _state = RandomlySelectNewState();
+        // _state = RandomlySelectNewState();
         
-        if (_state == AgentState.MoveRandomly)
+        switch (_state)
         {
-            MoveRandomly();
-        }
-        else if (_state == AgentState.MoveWithBearing)
-        {
-            MoveWithBearing();
-        }
-        else if (_state == AgentState.MoveTowardsGoal)
-        {
-            MoveTowardsGoal();
-        }
-        else if (_state == AgentState.ExploreAgents)
-        {
-            ExploreAgents();
+            case AgentState.MoveRandomly:
+                MoveRandomly();
+                break;
+            case AgentState.MoveWithBearing:
+                MoveWithBearing();
+                break;
+            case AgentState.MoveTowardsGoal:
+                MoveTowardsGoal();
+                break;
+            case AgentState.ExploreAgents: 
+                ExploreAgents();
+                break;
+            case AgentState.MoveTowardsGoalWithCollision:
+                MoveTowardsGoalWithCollision();
+                break;
+            default:
+                break;
         }
         
         if (_layer.GetCurrentTick() == 595)
@@ -149,10 +155,7 @@ public class ComplexAgent : IAgent<GridLayer>, IPositionable
         
         if (_path.MoveNext())
         {
-            if (!this.CollisionDetected(_path.Current))
-            {
-                _layer.ComplexAgentEnvironment.MoveTo(this, _path.Current, 1);
-            }
+            _layer.ComplexAgentEnvironment.MoveTo(this, _path.Current, 1);
             if (Position.Equals(_goal))
             {
                 Console.WriteLine($"ComplexAgent {ID} reached goal {_goal}");
@@ -169,8 +172,7 @@ public class ComplexAgent : IAgent<GridLayer>, IPositionable
     private Position FindRoutableGoal(double maxDistanceToGoal = 1.0)
     {
         var nearbyRoutableCells = _layer.Explore(Position, radius: maxDistanceToGoal, predicate: cellValue => cellValue == 0.0).ToList();
-        // var goal = nearbyRoutableCells[_random.Next(nearbyRoutableCells.Count)].Node.NodePosition;
-        var goal = new Position(58, 2);
+        var goal = nearbyRoutableCells[_random.Next(nearbyRoutableCells.Count)].Node.NodePosition;
 
         // in case only one cell is routable, use directly no need to random!
         // other vise, try to find a cell we are not coming from
@@ -203,21 +205,50 @@ public class ComplexAgent : IAgent<GridLayer>, IPositionable
         }
     }
 
-    private bool CollisionDetected(Position pos)
+    /// <summary>
+    ///     The agent moves towards a predefined goal, respecting collisions with the environment or other COMPLEX agents
+    /// </summary>
+    private void MoveTowardsGoalWithCollision()
     {
-        // Explore nearby other SimpleAgent instances
-        var agents = _layer.ComplexAgentEnvironment.Explore(Position, radius: AgentExploreRadius);
-
-        foreach (var agent in agents)
+        
+        // Specify goal
+        _goal = new Position(58, 2); // TODO: this is fixed here, but should be configurable via config or similar
+        
+        if (!_tripInProgress && !Position.Equals(_goal))
         {
-            if (Math.Abs(pos.X - agent.Position.X) < 0.1 && (Math.Abs(pos.Y - agent.Position.Y) < 0.1))
+            _path = _layer.FindPath(Position, _goal).GetEnumerator();
+            // The first element is the current position, so we move the counter twice to get the next position on the path TODO is not null-checked
+            _path.MoveNext();
+            _path.MoveNext();
+            _tripInProgress = true;
+        }
+        
+        // Check if it is available
+        var isAvailable = true;
+        var nearbyAgents = _layer.ComplexAgentEnvironment.Explore(Position, radius: 1.0);
+        foreach (var agent in nearbyAgents)
+        {
+            if (agent.Position.Equals(_path.Current)) // TODO: Warnings
             {
-                return true;
+                isAvailable = false;
             }
-            
         }
 
-        return false;
+        // If it is not, return
+        if (!isAvailable) return;
+
+        // Else move there (and check for goal)
+        _layer.ComplexAgentEnvironment.MoveTo(this, _path.Current, 1);
+        if (Position.Equals(_goal))
+        {
+            Console.WriteLine($"ComplexAgent {ID} reached goal {_goal}");
+            _tripInProgress = false;
+            //RemoveFromSimulation(); // Remove this from simulation to (hopefully) not clog the board
+        }
+        else
+        {
+            _path.MoveNext();
+        }
     }
     
     /// <summary>

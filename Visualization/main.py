@@ -371,15 +371,25 @@ class Visualization:
         while self.run:
             self.visualize_content()
 
+    # def visualization_loop(self):
+
+    #     thread.start_new_thread(self.content_loop, ())
+
+    #     while self.run:
+    #         self.clock.tick(self.desired_fps)
+    #         self.handle_inputs()
+    #         # self.visualize_content()
+
+
+    # NEED SYNC ON MY SYSTEM FOR THIS TO WORK WITH OPENGL - Lennart
     def visualization_loop(self):
 
-        thread.start_new_thread(self.content_loop, ())
+        #  thread.start_new_thread(self.content_loop, ())
 
         while self.run:
             self.clock.tick(self.desired_fps)
             self.handle_inputs()
-            # self.visualize_content()
-
+            self.visualize_content()
         pygame.quit()
 
 
