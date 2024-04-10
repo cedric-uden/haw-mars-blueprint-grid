@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import _thread as thread
 import json
 import time
-
-import pygame
-from pygame import RESIZABLE, DOUBLEBUF, HWSURFACE
-from websocket import create_connection, WebSocketConnectionClosedException
+import typing as t
 
 import lock
+import pygame
+from pygame import DOUBLEBUF
+from pygame import HWSURFACE
+from pygame import RESIZABLE
+from websocket import WebSocketConnectionClosedException
+from websocket import create_connection
 
 GRAY = (100, 100, 100)
 NAVYBLUE = (60, 60, 100)
@@ -37,27 +42,28 @@ VECTOR_COLORS = [RED, WHITE, BLUE, ORANGE, YELLOW]
 
 # WINDOW_SIZE = 800, 800
 
+
 class Visualization:
     def __init__(self):
         pygame.init()
         pygame.display.set_caption("MARS-Mini-VIS")
 
-        self.programIcon = pygame.image.load('icon.png')
+        self.programIcon = pygame.image.load("icon.png")
         pygame.display.set_icon(self.programIcon)
 
         self.clock = pygame.time.Clock()
         self.WINDOW_SIZE = [900, 920]
         self.WORLD_SIZE = 0, 0, 100, 100  # used for scaling
         self.BORDER_WIDTH_PIXEL = -20
-        self.font = pygame.font.Font('freesansbold.ttf', 12)
-        self.text = self.font.render('Tick: 0', True, YELLOW)
-        self.fps_text = self.font.render('FPS: 0', True, YELLOW)
-        self.desired_fps = self.font.render('Desired FPS: 0', True, YELLOW)
+        self.font = pygame.font.Font("freesansbold.ttf", 12)
+        self.text = self.font.render("Tick: 0", True, YELLOW)
+        self.fps_text = self.font.render("FPS: 0", True, YELLOW)
+        self.desired_fps = self.font.render("Desired FPS: 0", True, YELLOW)
         self.textRect = self.text.get_rect()
         self.fpsTextRect = self.fps_text.get_rect()
         self.desired_fpsRect = self.desired_fps.get_rect()
-        
-        self.textLoading = self.font.render('Waiting for MARS simulation to start...', True, WHITE)
+
+        self.textLoading = self.font.render("Waiting for MARS simulation to start...", True, WHITE)
 
         self.l = lock.RWLock()
         self.pressed_up = False
@@ -89,11 +95,15 @@ class Visualization:
         self.desired_fpsRect.center = (230, height - 12)
         self.barPos = (10, height - 40)
         self.barSize = (self.WINDOW_SIZE[0] - 20, 20)
-        self.screen = pygame.display.set_mode((self.WINDOW_SIZE[0], height), HWSURFACE | DOUBLEBUF | RESIZABLE)
+        self.screen = pygame.display.set_mode(
+            (self.WINDOW_SIZE[0], height), HWSURFACE | DOUBLEBUF | RESIZABLE
+        )
 
         if not self.has_welcome_been_printed:
             self.screen.fill(GRAY)
-            textLoadingRect = self.textLoading.get_rect(center=(self.WINDOW_SIZE[0]/2, self.WINDOW_SIZE[1]/2))
+            textLoadingRect = self.textLoading.get_rect(
+                center=(self.WINDOW_SIZE[0] / 2, self.WINDOW_SIZE[1] / 2)
+            )
             self.screen.blit(self.textLoading, textLoadingRect)
             pygame.display.update()
             self.has_welcome_been_printed = True
@@ -107,7 +117,12 @@ class Visualization:
             try:
                 ws = create_connection(self.uri)
                 print("Connecting to simulation ...")
-            except (ConnectionResetError, ConnectionRefusedError, TimeoutError, WebSocketConnectionClosedException):
+            except (
+                ConnectionResetError,
+                ConnectionRefusedError,
+                TimeoutError,
+                WebSocketConnectionClosedException,
+            ):
                 print("Waiting for running simulation ... ")
                 time.sleep(2)
                 ws = None
@@ -135,11 +150,16 @@ class Visualization:
 
             if "entities" in data:
                 entities_points = data["entities"]
-                self.entities[data['t']] = entities_points
+                self.entities[data["t"]] = entities_points
             if "worldSize" in data:
                 world_data = data["worldSize"]
                 if world_data["maxX"] > 0:
-                    self.WORLD_SIZE = world_data["minX"], world_data["minY"], world_data["maxX"], world_data["maxY"]
+                    self.WORLD_SIZE = (
+                        world_data["minX"],
+                        world_data["minY"],
+                        world_data["maxX"],
+                        world_data["maxY"],
+                    )
             if "vectors" in data:
                 layers_data = data["vectors"]
                 for feature in layers_data:
@@ -172,7 +192,7 @@ class Visualization:
     def visualize_content(self):
         self.clock.tick(self.desired_fps)
         self.load_data()
-       
+
         if not self.tick_display[0]:
             return
 
@@ -209,40 +229,54 @@ class Visualization:
             cells_with_value = raster["cells"]
 
             for cell in cells_with_value:
-                x = ((cell[0] - self.WORLD_SIZE[0]) * scale_x)
-                y = ((cell[1] - self.WORLD_SIZE[1]) * scale_y)
-                 
+                x = (cell[0] - self.WORLD_SIZE[0]) * scale_x
+                y = (cell[1] - self.WORLD_SIZE[1]) * scale_y
+
                 value = cell[2]
                 color = UNKNOWN_RASTER
                 if value in RASTER_COLORS:
                     color = RASTER_COLORS[value]
-                
+
                 pygame.draw.rect(surface, color, pygame.Rect(x, y, width, height))
 
         for geometry in self.point_features:
             point = geometry["coordinates"]
-            point_feature = (((float(point[0]) - self.WORLD_SIZE[0]) * scale_x) + self.BORDER_WIDTH_PIXEL,
-                             ((float(point[1]) - self.WORLD_SIZE[1]) * scale_y))
+            point_feature = (
+                ((float(point[0]) - self.WORLD_SIZE[0]) * scale_x) + self.BORDER_WIDTH_PIXEL,
+                ((float(point[1]) - self.WORLD_SIZE[1]) * scale_y),
+            )
             pygame.draw.circle(surface, BLUE, (point_feature[0], point_feature[1]), line_width, 0)
 
         for geometry in self.line_features:
-            line_feature = [(
-                (float(x[0] - self.WORLD_SIZE[0]) * scale_x) + self.BORDER_WIDTH_PIXEL,
-                ((float(x[1]) - self.WORLD_SIZE[1]) * scale_y)) for x in geometry["coordinates"]]
+            line_feature = [
+                (
+                    (float(x[0] - self.WORLD_SIZE[0]) * scale_x) + self.BORDER_WIDTH_PIXEL,
+                    ((float(x[1]) - self.WORLD_SIZE[1]) * scale_y),
+                )
+                for x in geometry["coordinates"]
+            ]
             pygame.draw.lines(surface, PURPLE, False, line_feature, line_width)
 
         for geometry in self.polygon_features:
             polygon_geometry_list = geometry["coordinates"]
             for coordinates in polygon_geometry_list:
-                pointlist = [(
-                    (float(x[0] - self.WORLD_SIZE[0]) * scale_x) + self.BORDER_WIDTH_PIXEL,
-                    (float(x[1] - self.WORLD_SIZE[1]) * scale_y)) for x in coordinates]
+                pointlist = [
+                    (
+                        (float(x[0] - self.WORLD_SIZE[0]) * scale_x) + self.BORDER_WIDTH_PIXEL,
+                        (float(x[1] - self.WORLD_SIZE[1]) * scale_y),
+                    )
+                    for x in coordinates
+                ]
                 pygame.draw.polygon(surface, GREEN, pointlist, 0)
 
         for geometry in self.ring_features:
-            pointlist = [(
-                ((float(x[0]) - self.WORLD_SIZE[0]) * scale_x) + self.BORDER_WIDTH_PIXEL,
-                ((float(x[1]) - self.WORLD_SIZE[1]) * scale_y)) for x in geometry["coordinates"]]
+            pointlist = [
+                (
+                    ((float(x[0]) - self.WORLD_SIZE[0]) * scale_x) + self.BORDER_WIDTH_PIXEL,
+                    ((float(x[1]) - self.WORLD_SIZE[1]) * scale_y),
+                )
+                for x in geometry["coordinates"]
+            ]
             pygame.draw.polygon(surface, ORANGE, pointlist, line_width)
 
         for type_key in self.entities.keys():
@@ -250,10 +284,16 @@ class Visualization:
                 x = entity["x"]
                 y = entity["y"]
 
-                pygame.draw.circle(surface, AGENT_COLORS[type_key % len(AGENT_COLORS)],
-                                   (((x - self.WORLD_SIZE[0]) * scale_x + scale_x / 2),
-                                    ((y - self.WORLD_SIZE[1]) * scale_y) + scale_y / 2),
-                                   line_width * agent_size, 0)
+                pygame.draw.circle(
+                    surface,
+                    AGENT_COLORS[type_key % len(AGENT_COLORS)],
+                    (
+                        ((x - self.WORLD_SIZE[0]) * scale_x + scale_x / 2),
+                        ((y - self.WORLD_SIZE[1]) * scale_y) + scale_y / 2,
+                    ),
+                    line_width * agent_size,
+                    0,
+                )
 
         # Map game area to main view
         flipped = pygame.transform.flip(surface, False, True)
@@ -261,11 +301,19 @@ class Visualization:
         pygame.draw.rect(self.screen, WHITE, (*self.gamePos, *self.gameSize), 1)
 
         # Update tick counter
-        self.screen.blit(self.font.render(f'Tick: {self.tick_display[1]}', True, WHITE), self.textRect)
-        self.screen.blit(self.font.render(f'FPS: {round(self.clock.get_fps(), 2)}', True, WHITE), self.fpsTextRect)
         self.screen.blit(
-            self.font.render(f'Desired FPS: {self.desired_fps} (use up- and down arrows to change)', True, WHITE),
-            self.desired_fpsRect)
+            self.font.render(f"Tick: {self.tick_display[1]}", True, WHITE), self.textRect
+        )
+        self.screen.blit(
+            self.font.render(f"FPS: {round(self.clock.get_fps(), 2)}", True, WHITE),
+            self.fpsTextRect,
+        )
+        self.screen.blit(
+            self.font.render(
+                f"Desired FPS: {self.desired_fps} (use up- and down arrows to change)", True, WHITE
+            ),
+            self.desired_fpsRect,
+        )
 
         # Update progressbar
         if self.tick_display[2] != 0:
@@ -296,20 +344,24 @@ class Visualization:
             if event.type == pygame.KEYDOWN:
                 if self.ws is not None:
                     if event.key == pygame.K_LEFT:
-                        self.time_to_wait_milliseconds = (self.time_to_wait_milliseconds - 3)
+                        self.time_to_wait_milliseconds = self.time_to_wait_milliseconds - 3
                         if self.time_to_wait_milliseconds < 0:
                             self.time_to_wait_milliseconds = 3
-                        self.ws.send(json.dumps({"timeToWaitInMilliseconds": self.time_to_wait_milliseconds}))
+                        self.ws.send(
+                            json.dumps({"timeToWaitInMilliseconds": self.time_to_wait_milliseconds})
+                        )
                     if event.key == pygame.K_RIGHT:
-                        self.time_to_wait_milliseconds = (self.time_to_wait_milliseconds + 10)
-                        self.ws.send(json.dumps({"timeToWaitInMilliseconds": self.time_to_wait_milliseconds}))
+                        self.time_to_wait_milliseconds = self.time_to_wait_milliseconds + 10
+                        self.ws.send(
+                            json.dumps({"timeToWaitInMilliseconds": self.time_to_wait_milliseconds})
+                        )
         keys = pygame.key.get_pressed()
         if keys[pygame.K_DOWN]:
-            self.desired_fps = (self.desired_fps - 3)
+            self.desired_fps = self.desired_fps - 3
             if self.desired_fps < 0:
                 self.desired_fps = 5
         elif keys[pygame.K_UP]:
-            self.desired_fps = (self.desired_fps + 3)
+            self.desired_fps = self.desired_fps + 3
             if self.desired_fps >= 1000:
                 self.desired_fps = 1000
         elif keys[pygame.K_q]:
