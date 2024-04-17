@@ -106,9 +106,9 @@ public class ComplexAgent : IAgent<GridLayer>, IPositionable
             // Check if chosen move goes to a cell that is routable
             if (_layer.IsRoutable(newX, newY))
             {
-                Position = new Position(newX, newY);
-                _layer.ComplexAgentEnvironment.MoveTo(this, new Position(newX, newY));
-                Console.WriteLine($"{GetType().Name} moved to a new cell: {Position}");
+                var position = new Position(newX, newY);
+                this.MoveToCell(position);
+                Console.WriteLine($"{GetType().Name} moved to a new cell: {position}");
             }
             else
             {
@@ -152,11 +152,16 @@ public class ComplexAgent : IAgent<GridLayer>, IPositionable
         }
 
         if (!_path.MoveNext()) return;
-        _layer.ComplexAgentEnvironment.MoveTo(this, _path.Current, 1);
+        this.MoveToCell(_path.Current, 1);
 
         if (!Position.Equals(_goal)) return;
         Console.WriteLine($"ComplexAgent {ID} reached goal {_goal}");
         _tripInProgress = false;
+    }
+
+    private void MoveToCell(Position position, double travelingDistance = 0D)
+    {
+        _layer.ComplexAgentEnvironment.MoveTo(this, position, travelingDistance);
     }
 
     /// <summary>
